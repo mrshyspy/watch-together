@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: watchtogether-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: watchtogether-backend
+    restart: always
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - YOUTUBE_API_KEY=AIzaSyDZlhU9aNYmUfBklc86gYCZuMQQU4pAWr4
+      - MONGODB_URI=mongodb://mongo:27017/youtube-sync
+      - CLIENT_URL=http://localhost:5173
+    depends_on:
+      - mongo
+
+  frontend:
+    build: ./frontend
+    container_name: watchtogether-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - REACT_APP_YOUTUBE_API_KEY=AIzaSyDZlhU9aNYmUfBklc86gYCZuMQQU4pAWr4
+      - REACT_APP_SERVER_URL=http://backend:5001
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
