@@ -31,7 +31,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - REACT_APP_YOUTUBE_API_KEY=AIzaSyDZlhU9aNYmUfBklc86gYCZuMQQU4pAWr4
+      - YOUTUBE_API_KEY=AIzaSyDZlhU9aNYmUfBklc86gYCZuMQQU4pAWr4
       - REACT_APP_SERVER_URL=http://backend:5001
     depends_on:
       - backend

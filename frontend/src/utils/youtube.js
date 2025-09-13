@@ -1,7 +1,21 @@
 import axios from 'axios';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5001';
+const API_KEY = import.meta.env.YOUTUBE_API_KEY; // or however you store it
 
+export async function isEmbeddable(videoId) {
+  try {
+    const res = await axios.get(
+      `https://www.googleapis.com/youtube/v3/videos?part=status&id=${videoId}&key=AIzaSyDZlhU9aNYmUfBklc86gYCZuMQQU4pAWr4`
+    );
+    return res.data.items[0]?.status.embeddable === true;
+  } catch (error) {
+    console.error("[YouTube] Embed check failed:", error);
+    return false;
+  }
+}
+
+
+const SERVER_URL = import.meta.env.VITE_REACT_APP_SERVER_URL || 'http://localhost:5001';
 // Extract video ID from YouTube URL
 export const extractVideoId = (url) => {
   const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;

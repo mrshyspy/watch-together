@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 
-const SERVER_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:5001';
+const SERVER_URL = import.meta.env.VITE_REACT_APP_SERVER_URL || 'http://localhost:5001';
 
 const useSocket = (roomId, currentUser) => {
   const [socket, setSocket] = useState(null);
@@ -194,7 +194,9 @@ const useSocket = (roomId, currentUser) => {
       socket.emit('user-reaction', { reaction });
     }
   };
-
+ console.log("Current video:", currentVideo);
+  console.log("Video state:", videoState);
+    console.log("Video id:", currentVideo?.videoId);
   return {
     socket,
     connected,

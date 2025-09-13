@@ -1,222 +1,256 @@
-import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import io from 'socket.io-client';
-import YouTube from 'react-youtube';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import useSocket from "../hooks/useSocket";
+import VideoPlayer from "./VideoPlayer";
+import Playlist from "./Playlist";
+import UserList from "./UserList";
+import Chat from "./Chat";
 
-const socket = io();
-
-export default function Room() {
+const RoomPage = ({ currentUser }) => {
   const { roomId } = useParams();
-  const [roomState, setRoomState] = useState({
-    playlist: [],
-    currentIndex: 0,
-    currentTime: 0,
-    isPlaying: false,
-    participants: [],
-    pending: [],
-    locked: false,
-    activityLog: [],
-  });
-  const [userId, setUserId] = useState('');
-  const [isCohost, setIsCohost] = useState(false);
-  const [player, setPlayer] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [message, setMessage] = useState('');
-  const [reactions, setReactions] = useState([]);
-  const syncInterval = useRef(null);
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("playlist");
 
+  const {
+    connected,
+    room,
+    userRole,
+    users,
+    playlist,
+    currentVideo,
+    videoState,
+    chatMessages,
+    reactions,
+    emitVideoPlay,
+    emitVideoPause,
+    emitVideoSeek,
+    addVideo,
+    removeVideo,
+    nextVideo,
+    promoteUser,
+    demoteUser,
+    toggleRoomLock,
+    sendMessage,
+    sendReaction,
+  } = useSocket(roomId, currentUser);
+
+  // console.log("Current video:", currentVideo);
+  console.log("Video state:", videoState);
+  //     console.log("Video id:", videoState?.id);
   useEffect(() => {
-    // Listen for updates
-    socket.on('roomJoined', ({ userId: uid, roomState: state }) => {
-      setUserId(uid);
-      updateState(state);
-    });
-    socket.on('approved', ({ userId: uid, roomState: state }) => {
-      setUserId(uid);
-      updateState(state);
-      socket.join(roomId);
-    });
-    socket.on('updatePlaylist', (playlist) => updateState({ playlist }));
-    socket.on('updatePlayback', (updates) => {
-      updateState(updates);
-      applyPlayback(updates);
-    });
-    socket.on('updateParticipants', (participants) => updateState({ participants }));
-    socket.on('updatePending', (pending) => updateState({ pending }));
-    socket.on('updateLock', (locked) => updateState({ locked }));
-    socket.on('newActivity', (log) => updateState({ activityLog: [...roomState.activityLog, log] }));
-    socket.on('newMessage', (msg) => setMessages([...messages, msg]));
-    socket.on('newReaction', (reaction) => setReactions([...reactions, reaction])); // Display briefly
-    socket.on('cohostRequest', ({ userId }) => {
-      if (isCohost) alert(`User ${userId} requests cohost`); // Or modal
-    });
+    if (!currentUser) {
+      navigate(`/room/${roomId}/join`);
+    }
+  }, [currentUser, roomId, navigate]);
 
-    // Request cohost
-    const handleRequest = () => socket.emit('requestCohost');
-
-    // Cleanup
-    return () => {
-      socket.off();
-      clearInterval(syncInterval.current);
-    };
-  }, [roomState, isCohost]);
-
-  const updateState = (newState) => {
-    setRoomState((prev) => ({ ...prev, ...newState }));
-    setIsCohost(roomState.participants.find(p => p.userId === userId)?.role === 'cohost');
-  };
-
-  const applyPlayback = ({ currentIndex, currentTime, isPlaying }) => {
-    if (player) {
-      if (currentIndex !== undefined) player.cueVideoById(roomState.playlist[currentIndex]?.videoId);
-      if (currentTime !== undefined) player.seekTo(currentTime, true);
-      if (isPlaying !== undefined) isPlaying ? player.playVideo() : player.pauseVideo();
+  const handleVideoEnd = () => {
+    if (userRole === "cohost") {
+      nextVideo();
     }
   };
 
-  const handleReady = (event) => {
-    setPlayer(event.target);
-    applyPlayback(roomState); // Initial sync
-    if (isCohost) {
-      syncInterval.current = setInterval(() => {
-        socket.emit('syncTime', event.target.getCurrentTime());
-      }, 5001);
-    }
+  const copyRoomLink = () => {
+    const link = `${window.location.origin}/room/${roomId}/join`;
+    navigator.clipboard.writeText(link).then(() => {
+      alert("Room link copied to clipboard!");
+    });
   };
 
-  const handleStateChange = (event) => {
-    if (event.data === 0 && isCohost) { // Ended
-      socket.emit('next');
-    }
+  const leaveRoom = () => {
+    navigate("/");
   };
 
-  const handlePlay = () => socket.emit('play');
-  const handlePause = () => socket.emit('pause');
-  const handleSeek = (e) => socket.emit('seek', parseFloat(e.target.value));
-  const handleAddVideo = async (url) => {
-    const videoId = new URLSearchParams(new URL(url).search).get('v');
-    if (videoId) {
-      const res = await axios.get(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${videoId}&key=${process.env.REACT_APP_YOUTUBE_API_KEY}`);
-      const video = { videoId, title: res.data.items[0].snippet.title, thumbnail: res.data.items[0].snippet.thumbnails.default.url };
-      socket.emit('addVideo', video);
-    }
-  };
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Redirecting to join room...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const handleImportPlaylist = async (playlistUrl) => {
-    const playlistId = new URLSearchParams(new URL(playlistUrl).search).get('list');
-    let videos = [];
-    let pageToken = '';
-    do {
-      const res = await axios.get(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=50&pageToken=${pageToken}&key=${process.env.REACT_APP_YOUTUBE_API_KEY}`);
-      videos = [...videos, ...res.data.items.map(item => ({
-        videoId: item.snippet.resourceId.videoId,
-        title: item.snippet.title,
-        thumbnail: item.snippet.thumbnails.default.url
-      }))];
-      pageToken = res.data.nextPageToken;
-    } while (pageToken);
-    videos.forEach(video => socket.emit('addVideo', video));
-  };
-
-  const handleRemoveVideo = (index) => socket.emit('removeVideo', index);
-  const handlePromote = (uid) => socket.emit('promote', { targetUserId: uid });
-  const handleDemote = (uid) => socket.emit('demote', { targetUserId: uid });
-  const handleApprove = (uid) => socket.emit('approveJoin', { userId: uid });
-  const handleLock = () => socket.emit('lockRoom', !roomState.locked);
-  const sendMessage = () => {
-    socket.emit('message', { user: userId, text: message });
-    setMessage('');
-  };
-  const sendReaction = (reaction) => socket.emit('reaction', { user: userId, reaction });
+  if (!connected) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Connecting to room...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="grid grid-cols-4 h-screen">
-      {/* Video Player */}
-      <div className="col-span-3 flex justify-center items-center bg-black">
-        {roomState.playlist.length > 0 && (
-          <YouTube
-            videoId={roomState.playlist[roomState.currentIndex]?.videoId}
-            opts={{ width: '100%', height: '100%', playerVars: { controls: isCohost ? 0 : 0, autoplay: 1 } }} // Hide controls for all, use custom
-            onReady={handleReady}
-            onStateChange={handleStateChange}
-          />
-        )}
+    <div className="min-h-screen bg-gray-900 text-white">
+      {/* Header */}
+      <header className="bg-gray-800 border-b border-gray-700 p-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-bold flex items-center space-x-2">
+              <span>🎬</span>
+              <span>SyncWatch</span>
+            </h1>
+            <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-400">
+              <span>Room:</span>
+              <code className="bg-gray-700 px-2 py-1 rounded">{roomId}</code>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <div className="hidden sm:flex items-center space-x-2 text-sm">
+              <span
+                className={
+                  userRole === "cohost" ? "text-purple-300" : "text-green-300"
+                }
+              >
+                {userRole === "cohost" ? "👑" : "👤"} {currentUser.username}
+              </span>
+              <span className="text-gray-500">|</span>
+              <span className={connected ? "text-green-400" : "text-red-400"}>
+                {connected ? "🟢 Connected" : "🔴 Disconnected"}
+              </span>
+            </div>
+
+            <button
+              onClick={copyRoomLink}
+              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+            >
+              📋 Share
+            </button>
+
+            <button
+              onClick={leaveRoom}
+              className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+            >
+              🚪 Leave
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <div className="max-w-7xl mx-auto p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Video player */}
+          <div className="lg:col-span-2">
+            <VideoPlayer
+              currentVideo={currentVideo}
+              videoState={videoState}
+              userRole={userRole}
+              onPlay={emitVideoPlay}
+              onPause={emitVideoPause}
+              onSeek={emitVideoSeek}
+              onVideoEnd={handleVideoEnd}
+            />
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Mobile tabs */}
+            <div className="lg:hidden">
+              <div className="flex border-b border-gray-700">
+                {[
+                  { id: "playlist", label: "Playlist", icon: "🎵" },
+                  { id: "users", label: "Users", icon: "👥" },
+                  { id: "chat", label: "Chat", icon: "💬" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 py-3 px-4 text-sm font-medium transition-colors duration-200 ${
+                      activeTab === tab.id
+                        ? "text-purple-300 border-b-2 border-purple-500"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    <span className="mr-2">{tab.icon}</span>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop layout / Mobile active tab */}
+            <div className="grid grid-cols-1 gap-6 h-96 lg:h-auto">
+              {(activeTab === "playlist" || window.innerWidth >= 1024) && (
+                <div
+                  className={`${
+                    activeTab !== "playlist" ? "hidden lg:block" : ""
+                  }`}
+                >
+                  <Playlist
+                    playlist={playlist}
+                    currentVideo={currentVideo}
+                    userRole={userRole}
+                    onAddVideo={addVideo}
+                    onRemoveVideo={removeVideo}
+                    onNextVideo={nextVideo}
+                  />
+                </div>
+              )}
+
+              {(activeTab === "users" || window.innerWidth >= 1024) && (
+                <div
+                  className={`${
+                    activeTab !== "users" ? "hidden lg:block" : ""
+                  }`}
+                >
+                  <UserList
+                    users={users}
+                    currentUsername={currentUser.username}
+                    userRole={userRole}
+                    room={room}
+                    onPromoteUser={promoteUser}
+                    onDemoteUser={demoteUser}
+                    onToggleRoomLock={toggleRoomLock}
+                  />
+                </div>
+              )}
+
+              {(activeTab === "chat" || window.innerWidth >= 1024) && (
+                <div
+                  className={`${activeTab !== "chat" ? "hidden lg:block" : ""}`}
+                >
+                  <Chat
+                    messages={chatMessages}
+                    reactions={reactions}
+                    currentUsername={currentUser.username}
+                    onSendMessage={sendMessage}
+                    onSendReaction={sendReaction}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Sidebar: Playlist, Users, Chat */}
-      <div className="col-span-1 p-4 bg-gray-100 overflow-y-auto">
-        <h2 className="text-xl mb-2">Playlist</h2>
-        <ul>
-          {roomState.playlist.map((video, idx) => (
-            <li key={idx} className={`flex items-center mb-2 ${idx === roomState.currentIndex ? 'bg-blue-200' : ''}`}>
-              <img src={video.thumbnail} alt="thumb" className="w-16 h-9 mr-2" />
-              {video.title}
-              {isCohost && <button onClick={() => handleRemoveVideo(idx)} className="ml-auto text-red-500">Remove</button>}
-            </li>
-          ))}
-        </ul>
-        {isCohost && (
-          <>
-            <input type="text" placeholder="Add YouTube URL" onKeyDown={(e) => e.key === 'Enter' && handleAddVideo(e.target.value)} className="border p-1 mb-2 w-full" />
-            <input type="text" placeholder="Import Playlist URL" onKeyDown={(e) => e.key === 'Enter' && handleImportPlaylist(e.target.value)} className="border p-1 mb-2 w-full" />
-          </>
-        )}
+      {/* Floating reactions */}
+      <div className="fixed inset-0 pointer-events-none z-50">
+        {reactions.map((reaction, index) => {
+          const left = 10 + ((index * 20) % 80); // spread out horizontally
+          const top = 30 + Math.random() * 40; // keep within middle vertical range
+          const duration = 1.5 + Math.random() * 1.5; // 1.5s–3s animation
 
-        <h2 className="text-xl mt-4 mb-2">Users</h2>
-        <ul>
-          {roomState.participants.map((p) => (
-            <li key={p.userId} className="mb-1">
-              {p.name} ({p.role})
-              {isCohost && p.userId !== userId && (
-                <>
-                  {p.role === 'guest' && <button onClick={() => handlePromote(p.userId)} className="text-green-500 ml-2">Promote</button>}
-                  {p.role === 'cohost' && <button onClick={() => handleDemote(p.userId)} className="text-red-500 ml-2">Demote</button>}
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-        {isCohost && roomState.pending.length > 0 && (
-          <>
-            <h3>Pending Joins</h3>
-            <ul>
-              {roomState.pending.map((p) => (
-                <li key={p.userId}>{p.name} <button onClick={() => handleApprove(p.userId)} className="text-green-500">Approve</button></li>
-              ))}
-            </ul>
-          </>
-        )}
-        {isCohost && <button onClick={handleLock} className="bg-yellow-500 text-white p-1 mt-2">{roomState.locked ? 'Unlock' : 'Lock'} Room</button>}
-        {!isCohost && <button onClick={() => socket.emit('requestCohost')} className="bg-blue-500 text-white p-1 mt-2">Request Cohost</button>}
-
-        <h2 className="text-xl mt-4 mb-2">Controls (Cohosts Only)</h2>
-        {isCohost && (
-          <div className="flex mb-2">
-            <button onClick={handlePlay} className="bg-green-500 text-white p-2 mr-2">Play</button>
-            <button onClick={handlePause} className="bg-red-500 text-white p-2 mr-2">Pause</button>
-            <input type="range" min="0" max={player?.getDuration() || 0} value={roomState.currentTime} onChange={handleSeek} className="flex-1" />
-          </div>
-        )}
-
-        <h2 className="text-xl mt-4 mb-2">Chat</h2>
-        <ul className="mb-2">
-          {messages.map((m, idx) => <li key={idx}>{m.user}: {m.text}</li>)}
-        </ul>
-        <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="border p-1 w-full" />
-        <button onClick={sendMessage} className="bg-blue-500 text-white p-1 mt-2">Send</button>
-
-        <h2 className="text-xl mt-4 mb-2">Reactions</h2>
-        <button onClick={() => sendReaction('👍')} className="mr-2">👍</button>
-        <button onClick={() => sendReaction('❤️')} className="mr-2">❤️</button>
-        <button onClick={() => sendReaction('😂')} className="mr-2">😂</button>
-        {/* Display reactions as floating overlays or list */}
-
-        <h2 className="text-xl mt-4 mb-2">Activity Log</h2>
-        <ul>
-          {roomState.activityLog.map((log, idx) => <li key={idx}>{log.timestamp}: {log.message}</li>)}
-        </ul>
+          return (
+            <div
+              key={`${reaction.username}-${reaction.timestamp}-${index}`}
+              className="absolute text-4xl animate-bounce"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                animationDuration: `${duration}s`,
+              }}
+            >
+              {reaction.reaction}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-}
+};
+
+export default RoomPage;
