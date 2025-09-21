@@ -178,7 +178,7 @@ const VideoPlayer = ({ socket, currentVideo, userRole, videoState }) => {
               opts={opts}
               onReady={onPlayerReady}
               onStateChange={onPlayerStateChange}
-              className="w-full h-full" // ✅ kept
+              className="w-full h-full" // ✅ kept it
               iframeClassName="w-full h-full" // ✅ kept
             />
           ) : (
