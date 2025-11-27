@@ -47,23 +47,55 @@ const VideoPlayer = ({ socket, currentVideo, userRole, videoState }) => {
     const currentTime = playerRef.current?.getCurrentTime?.() || 0;
     const timestamp = Date.now();
 
-    switch (event.data) {
-      case window.YT.PlayerState.PLAYING:
-        log("PLAYER", "Cohost played video", { currentTime });
+    // Guard against missing YT global
+    const PlayerState = typeof window !== "undefined" ? window?.YT?.PlayerState : undefined;
+    if (PlayerState) {
+      switch (event.data) {
+        case PlayerState.PLAYING:
+          log("PLAYER", "Cohost played video", { currentTime });
+          socket.emit("video-play", { position: currentTime, timestamp });
+          break;
+        case PlayerState.PAUSED:
+          log("PLAYER", "Cohost paused video", { currentTime });
+          socket.emit("video-pause", { position: currentTime, timestamp });
+          break;
+        default:
+          log("PLAYER", "Unhandled state change", { state: event.data });
+      }
+    } else {
+      // Fallback: handle common numeric states (1=playing,2=paused)
+      if (event.data === 1) {
+        log("PLAYER", "Cohost played video (fallback numeric)", { currentTime });
         socket.emit("video-play", { position: currentTime, timestamp });
-        break;
-      case window.YT.PlayerState.PAUSED:
-        log("PLAYER", "Cohost paused video", { currentTime });
+      } else if (event.data === 2) {
+        log("PLAYER", "Cohost paused video (fallback numeric)", { currentTime });
         socket.emit("video-pause", { position: currentTime, timestamp });
-        break;
-      default:
-        log("PLAYER", "Unhandled state change", { state: event.data });
+      } else {
+        log("PLAYER", "Unhandled state change (no YT)", { state: event.data });
+      }
     }
   };
 
-  const syncToState = (state) => {
+  const syncToState = (state, attempt = 0) => {
+    const MAX_ATTEMPTS = 6;
+    const RETRY_DELAY = 500; // ms
+
     if (!playerRef.current || !isReady || isSyncing) {
       log("SYNC", "Skipped sync (player not ready or already syncing)");
+      return;
+    }
+
+    // Defensive: ensure iframe exists and has a src before posting messages to it
+    const iframe = typeof playerRef.current.getIframe === "function"
+      ? playerRef.current.getIframe()
+      : null;
+    if (!iframe || !iframe.src) {
+      if (attempt < MAX_ATTEMPTS) {
+        log("SYNC", "Iframe not ready, retrying...", { attempt });
+        setTimeout(() => syncToState(state, attempt + 1), RETRY_DELAY);
+      } else {
+        log("SYNC", "Iframe never became ready, aborting sync");
+      }
       return;
     }
 
@@ -74,23 +106,33 @@ const VideoPlayer = ({ socket, currentVideo, userRole, videoState }) => {
 
     log("SYNC", "Syncing player", { targetTime, playing, original: state });
 
-    if (typeof playerRef.current.seekTo === "function") {
-      playerRef.current.seekTo(targetTime, true);
-    }
-
-    setTimeout(() => {
-      if (!playerRef.current) return;
-
-      if (playing) {
-        log("SYNC", "Ensuring video is playing");
-        playerRef.current.playVideo();
-      } else {
-        log("SYNC", "Ensuring video is paused");
-        playerRef.current.pauseVideo();
+    try {
+      if (typeof playerRef.current.seekTo === "function") {
+        playerRef.current.seekTo(targetTime, true);
       }
+
+      setTimeout(() => {
+        if (!playerRef.current) return;
+
+        try {
+          if (playing) {
+            log("SYNC", "Ensuring video is playing");
+            playerRef.current.playVideo?.();
+          } else {
+            log("SYNC", "Ensuring video is paused");
+            playerRef.current.pauseVideo?.();
+          }
+        } catch (err) {
+          console.error("SYNC: player control error:", err);
+        } finally {
+          setIsSyncing(false);
+          log("SYNC", "Sync complete");
+        }
+      }, 500);
+    } catch (err) {
+      console.error("SYNC: unexpected error while syncing:", err);
       setIsSyncing(false);
-      log("SYNC", "Sync complete");
-    }, 500);
+    }
   };
 
   // Socket event listeners
@@ -116,9 +158,11 @@ const VideoPlayer = ({ socket, currentVideo, userRole, videoState }) => {
     const handleVideoSeek = (data) => {
       log("SOCKET", "Received video-seek", data);
       if (userRole === "guest") {
+        const PlayerState = typeof window !== "undefined" ? window?.YT?.PlayerState : undefined;
+        const isPlaying = PlayerState ? playerRef.current?.getPlayerState() === PlayerState.PLAYING : playerRef.current?.getPlayerState() === 1;
         syncToState({
           ...data,
-          playing: playerRef.current?.getPlayerState() === 1,
+          playing: isPlaying,
         });
       }
     };
@@ -126,10 +170,13 @@ const VideoPlayer = ({ socket, currentVideo, userRole, videoState }) => {
     const handleVideoChanged = (data) => {
       log("SOCKET", "Received video-changed", data);
       if (data.currentVideo && playerRef.current) {
-        playerRef.current.loadVideoById(data.currentVideo.videoId);
-        setTimeout(() => {
-          syncToState(data.videoState);
-        }, 1000);
+        try {
+          playerRef.current.loadVideoById(data.currentVideo.videoId);
+        } catch (err) {
+          console.error("SOCKET: loadVideoById error:", err);
+        }
+        // Use syncToState which will retry until iframe is ready
+        syncToState(data.videoState);
       }
     };
 

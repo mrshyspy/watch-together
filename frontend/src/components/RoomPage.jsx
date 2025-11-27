@@ -12,6 +12,7 @@ const RoomPage = ({ currentUser }) => {
   const [activeTab, setActiveTab] = useState("playlist");
 
   const {
+    socket,
     connected,
     room,
     userRole,
@@ -136,6 +137,7 @@ const RoomPage = ({ currentUser }) => {
           {/* Video player */}
           <div className="lg:col-span-2">
             <VideoPlayer
+              socket={socket}
               currentVideo={currentVideo}
               videoState={videoState}
               userRole={userRole}

@@ -12,15 +12,16 @@ const youtubeRoutes = require('./routes/youtube');
 
 const app = express();
 const server = http.createServer(app);
+const DEFAULT_CLIENT = process.env.CLIENT_URL || "http://localhost:5173";
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: DEFAULT_CLIENT,
     methods: ["GET", "POST"]
   }
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: DEFAULT_CLIENT }));
 app.use(express.json());
 
 console.log('--- Server Initialization ---');
