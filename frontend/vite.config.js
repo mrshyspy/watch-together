@@ -4,7 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(),tailwindcss()],
-//   server: {
-//   https: true,
-// }
+  server: {
+    proxy: {
+      '/socket.io': {
+        target: 'import.meta.env.VITE_REACT_APP_SERVER_URL',
+        ws: true
+      }
+    }
+  }
 });

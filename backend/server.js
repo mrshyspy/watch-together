@@ -5,6 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
+const path = require('path');
 
 const Room = require('./models/room');
 const User = require('./models/user');
@@ -23,6 +24,9 @@ const io = socketIo(server, {
 // Middleware
 app.use(cors({ origin: DEFAULT_CLIENT }));
 app.use(express.json());
+
+// Serve static files from the React frontend build
+app.use(express.static(path.join(__dirname, '../frontend/build')));
 
 console.log('--- Server Initialization ---');
 console.log('PORT:', process.env.PORT);
@@ -46,6 +50,11 @@ mongoose.connection.on('error', (err) => {
 // Routes
 console.log('Registering /api/youtube routes');
 app.use('/api/youtube', youtubeRoutes);
+
+// Catch-all handler: serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+});
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
