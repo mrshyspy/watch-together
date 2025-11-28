@@ -10,6 +10,27 @@ const RoomPage = ({ currentUser }) => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("playlist");
+  const [user, setUser] = useState(currentUser);
+  const [loading, setLoading] = useState(!currentUser);
+
+  useEffect(() => {
+    if (!currentUser) {
+      const storedUser = localStorage.getItem('currentUser');
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+          setLoading(false);
+        } catch {
+          navigate(`/room/${roomId}/join`);
+        }
+      } else {
+        navigate(`/room/${roomId}/join`);
+      }
+    } else {
+      setUser(currentUser);
+      setLoading(false);
+    }
+  }, [currentUser, roomId, navigate]);
 
   const {
     socket,
@@ -33,16 +54,7 @@ const RoomPage = ({ currentUser }) => {
     toggleRoomLock,
     sendMessage,
     sendReaction,
-  } = useSocket(roomId, currentUser);
-
-  // console.log("Current video:", currentVideo);
-  console.log("Video state:", videoState);
-  //     console.log("Video id:", videoState?.id);
-  useEffect(() => {
-    if (!currentUser) {
-      navigate(`/room/${roomId}/join`);
-    }
-  }, [currentUser, roomId, navigate]);
+  } = useSocket(roomId, user);
 
   const handleVideoEnd = () => {
     if (userRole === "cohost") {
@@ -58,10 +70,22 @@ const RoomPage = ({ currentUser }) => {
   };
 
   const leaveRoom = () => {
+    localStorage.removeItem('currentUser');
     navigate("/");
   };
 
-  if (!currentUser) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-white text-center">
@@ -106,7 +130,7 @@ const RoomPage = ({ currentUser }) => {
                   userRole === "cohost" ? "text-purple-300" : "text-green-300"
                 }
               >
-                {userRole === "cohost" ? "👑" : "👤"} {currentUser.username}
+                {userRole === "cohost" ? "👑" : "👤"} {user.username}
               </span>
               <span className="text-gray-500">|</span>
               <span className={connected ? "text-green-400" : "text-red-400"}>
@@ -201,7 +225,7 @@ const RoomPage = ({ currentUser }) => {
                 >
                   <UserList
                     users={users}
-                    currentUsername={currentUser.username}
+                    currentUsername={user.username}
                     userRole={userRole}
                     room={room}
                     onPromoteUser={promoteUser}
@@ -218,7 +242,7 @@ const RoomPage = ({ currentUser }) => {
                   <Chat
                     messages={chatMessages}
                     reactions={reactions}
-                    currentUsername={currentUser.username}
+                    currentUsername={user.username}
                     onSendMessage={sendMessage}
                     onSendReaction={sendReaction}
                   />
