@@ -8,11 +8,13 @@ const LandingPage = () => {
 
   const createRoom = () => {
     const newRoomId = uuidv4();
+    localStorage.removeItem('currentUser');
     navigate(`/room/${newRoomId}/join`);
   };
 
   const joinRoom = () => {
     if (roomId.trim()) {
+      localStorage.removeItem('currentUser');
       navigate(`/room/${roomId.trim()}/join`);
     }
   };
