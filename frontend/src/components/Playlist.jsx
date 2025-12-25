@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { extractVideoId, extractPlaylistId, getVideoDetails, getPlaylistVideos, isValidYouTubeUrl, isEmbeddable } from '../utils/youtube';
 
 const Playlist = ({ 
@@ -8,16 +8,21 @@ const Playlist = ({
   onAddVideo, 
   onRemoveVideo, 
   onNextVideo,
-   
+  onVideoSelect, // NEW: callback when a playlist item is clicked
 }) => {
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  
-// console.log("Current video:", currentVideo);
-  // console.log("Video state:", videoState);
-    // console.log("Video id:", currentVideo?.id);
+  // NEW: local selected id so clicks immediately highlight item
+  const keyOf = (v) => v?.id ?? v?.videoId ?? v?.video_id ?? null;
+  const [selectedId, setSelectedId] = useState(keyOf(currentVideo));
+
+  // keep local selection in sync when parent updates currentVideo
+  useEffect(() => {
+    setSelectedId(keyOf(currentVideo));
+  }, [currentVideo]);
+
   const handleAddVideo = async () => {
     if (!newVideoUrl.trim()) return;
 
@@ -50,8 +55,6 @@ const Playlist = ({
       setIsLoading(false);
     }
   };
-
-  
 
   const handleImportPlaylist = async () => {
     if (!newVideoUrl.trim()) return;
@@ -138,13 +141,13 @@ const Playlist = ({
       {/* Controls for cohosts */}
       {userRole === 'cohost' && currentVideo && (
         <div className="mb-4">
-          <button
+          {/* <button
             onClick={onNextVideo}
             className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium flex items-center justify-center space-x-2"
           >
             <span>⏭️</span>
             <span>Next Video</span>
-          </button>
+          </button> */}
         </div>
       )}
 
@@ -157,56 +160,91 @@ const Playlist = ({
             <p className="text-xs mt-1">Add a YouTube video to get started!</p>
           </div>
         ) : (
-          playlist.map((video, index) => (
-            <div
-              key={video.id}
-              className={`p-3 rounded-lg border transition-all duration-200 ${
-                currentVideo?.id === video.id
-                  ? 'border-purple-500 bg-purple-500/20'
-                  : 'border-gray-600 bg-gray-700/50 hover:bg-gray-600/50'
-              }`}
-            >
-              <div className="flex space-x-3">
-                <img
-                  src={video.thumbnail}
-                  alt={video.title}
-                  className="w-16 h-12 object-cover rounded flex-shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-white truncate">
-                    {video.title}
-                  </h4>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-xs text-gray-400">
-                      by {video.addedBy}
-                    </span>
-                    {video.duration && (
-                      <span className="text-xs text-gray-400">
-                        {video.duration}
-                      </span>
-                    )}
-                  </div>
-                  {currentVideo?.id === video.id && (
-                    <div className="flex items-center mt-1">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
-                      <span className="text-xs text-purple-400 font-medium">Now Playing</span>
-                    </div>
-                  )}
-                </div>
-                {userRole === 'cohost' && (
-                  <button
-                    onClick={() => onRemoveVideo(video.id)}
-                    className="text-red-400 hover:text-red-300 p-1 rounded transition-colors duration-200"
-                    title="Remove video"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
+          playlist.map((video, index) => {
+            const vidKey = keyOf(video);
+            const isActive = selectedId === vidKey;
+
+            return (
+              <div
+                key={vidKey ?? index}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  // update local selection immediately
+                  setSelectedId(vidKey);
+                  // call parent callback if present
+                  onVideoSelect?.(video);
+                  // also broadcast a window event so VideoPlayer (and any other listener) can react immediately
+                  try {
+                    window.dispatchEvent(new CustomEvent('watchtogether:selectVideo', { detail: video }));
+                  } catch (err) {
+                    // older browsers fallback
+                    const ev = document.createEvent('CustomEvent');
+                    ev.initCustomEvent('watchtogether:selectVideo', true, true, video);
+                    window.dispatchEvent(ev);
+                  }
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    setSelectedId(vidKey);
+                    onVideoSelect?.(video);
+                    try {
+                      window.dispatchEvent(new CustomEvent('watchtogether:selectVideo', { detail: video }));
+                    } catch (err) {
+                      const ev = document.createEvent('CustomEvent');
+                      ev.initCustomEvent('watchtogether:selectVideo', true, true, video);
+                      window.dispatchEvent(ev);
+                    }
+                  }
+                }}
+                className={`p-3 rounded-lg border transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? 'border-purple-500 bg-purple-500/20'
+                    : 'border-gray-600 bg-gray-700/50 hover:bg-gray-600/50'
+                }`}
+              >
+                 <div className="flex space-x-3">
+                   <img
+                     src={video.thumbnail}
+                     alt={video.title}
+                     className="w-16 h-12 object-cover rounded flex-shrink-0"
+                   />
+                   <div className="flex-1 min-w-0">
+                     <h4 className="text-sm font-medium text-white truncate">
+                       {video.title}
+                     </h4>
+                     <div className="flex items-center justify-between mt-1">
+                       <span className="text-xs text-gray-400">
+                         by {video.addedBy}
+                       </span>
+                       {video.duration && (
+                         <span className="text-xs text-gray-400">
+                           {video.duration}
+                         </span>
+                       )}
+                     </div>
+                     {isActive && (
+                       <div className="flex items-center mt-1">
+                         <div className="w-2 h-2 bg-purple-500 rounded-full mr-2 animate-pulse"></div>
+                         <span className="text-xs text-purple-400 font-medium">Now Playing</span>
+                       </div>
+                     )}
+                   </div>
+                   {userRole === 'cohost' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onRemoveVideo(vidKey); if (selectedId === vidKey) setSelectedId(null); }}
+                      className="text-red-400 hover:text-red-300 p-1 rounded transition-colors duration-200"
+                      title="Remove video"
+                    >
+                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                       </svg>
+                     </button>
+                   )}
+                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
