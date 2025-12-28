@@ -6,7 +6,7 @@ const LandingPage = () => {
   const [roomId, setRoomId] = useState('');
   const navigate = useNavigate();
 
-  const createRoom = () => {
+   const createRoom = () => {
     const newRoomId = uuidv4();
     localStorage.removeItem('currentUser');
     navigate(`/room/${newRoomId}/join`);
@@ -23,7 +23,7 @@ const LandingPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <div className="max-w-md w-full mx-4">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">🎬 SyncWatch</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">SyncTube</h1>
           <p className="text-gray-300">Watch YouTube videos together in sync</p>
         </div>
 
@@ -33,7 +33,7 @@ const LandingPage = () => {
               onClick={createRoom}
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
-              🎭 Create New Room
+              Create New Room
             </button>
 
             <div className="relative">
@@ -59,7 +59,7 @@ const LandingPage = () => {
                 disabled={!roomId.trim()}
                 className="w-full bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
-                🚪 Join Room
+               Join Room
               </button>
             </div>
           </div>
@@ -67,7 +67,7 @@ const LandingPage = () => {
 
         <div className="mt-8 text-center text-gray-400 text-sm">
           <p>Create a room to watch together with friends!</p>
-          <p className="mt-2">🎥 Synchronized playback • 🎵 Shared playlists • 👥 Role management</p>
+          {/* <p className="mt-2">🎥 Synchronized playback • 🎵 Shared playlists • 👥 Role management</p> */}
         </div>
       </div>
     </div>

@@ -5,6 +5,8 @@ import VideoPlayer from "./VideoPlayer";
 import Playlist from "./Playlist";
 import UserList from "./UserList";
 import Chat from "./Chat";
+import { FaTv, FaCrown, FaUser } from 'react-icons/fa';
+
 
 const RoomPage = ({ currentUser }) => {
   const { roomId } = useParams();
@@ -114,8 +116,8 @@ const RoomPage = ({ currentUser }) => {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h1 className="text-2xl font-bold flex items-center space-x-2">
-              <span>🎬</span>
-              <span>SyncWatch</span>
+              <span></span>
+              <span>SyncTube</span>
             </h1>
             <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-400">
               <span>Room:</span>
@@ -124,14 +126,16 @@ const RoomPage = ({ currentUser }) => {
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="hidden sm:flex items-center space-x-2 text-sm">
-              <span
-                className={
-                  userRole === "cohost" ? "text-purple-300" : "text-green-300"
-                }
-              >
-                {userRole === "cohost" ? "👑" : "👤"} {user.username}
-              </span>
+            <div className="hidden sm:flex items-center space-x-2 text-sm  ">
+             <span
+  className={`inline-flex items-center gap-1 ${
+    userRole === "cohost" ? "text-purple-300" : "text-green-300"
+  }`}
+>
+  {userRole === "cohost" ? <FaCrown /> : <FaUser />}
+  <span>{user.username}</span>
+</span>
+
               <span className="text-gray-500">|</span>
               <span className={connected ? "text-green-400" : "text-red-400"}>
                 {connected ? "🟢 Connected" : "🔴 Disconnected"}
@@ -140,16 +144,16 @@ const RoomPage = ({ currentUser }) => {
 
             <button
               onClick={copyRoomLink}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 text-sm font-medium"
             >
-              📋 Share
+              Share
             </button>
 
             <button
               onClick={leaveRoom}
-              className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 text-sm font-medium"
+              className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded-lg transition-colors duration-200 text-sm font-medium"
             >
-              🚪 Leave
+              Leave
             </button>
           </div>
         </div>
@@ -179,7 +183,7 @@ const RoomPage = ({ currentUser }) => {
               <div className="flex border-b border-gray-700">
                 {[
                   { id: "playlist", label: "Playlist", icon: "🎵" },
-                  { id: "users", label: "Users", icon: "👥" },
+                  { id: "users", label: "Users", icon: <FaUser/> },
                   { id: "chat", label: "Chat", icon: "💬" },
                 ].map((tab) => (
                   <button

@@ -57,7 +57,7 @@ const Chat = ({
           <span>Chat</span>
         </h3>
         
-        <div className="relative">
+        {/* <div className="relative">
           <button
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200"
@@ -79,7 +79,7 @@ const Chat = ({
               ))}
             </div>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* Messages */}

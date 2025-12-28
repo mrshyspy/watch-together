@@ -27,7 +27,7 @@ const RoleSelection = ({ setCurrentUser }) => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       <div className="max-w-lg w-full mx-4">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🎭</div>
+          <div className="text-5xl mb-4"></div>
           <h1 className="text-3xl font-bold text-white mb-2">Join Room</h1>
           <p className="text-gray-300">Room ID: <span className="font-mono text-purple-300">{roomId}</span></p>
         </div>
@@ -125,7 +125,7 @@ const RoleSelection = ({ setCurrentUser }) => {
                 </>
               ) : (
                 <>
-                  <span className="text-xl">🚀</span>
+                  <span className="text-xl"></span>
                   <span>Join Room</span>
                 </>
               )}
