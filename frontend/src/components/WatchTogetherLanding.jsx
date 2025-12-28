@@ -81,10 +81,19 @@ const WatchTogetherLanding = () => {
                 className="px-6 py-2 rounded-lg text-sm font-medium hover:bg-white/5 transition-colors">
                 Features
               </button> */}
-              <button onClick={joinRoom}
-                className="px-6 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 transition-all">
+              {/* <button onClick={joinRoom}
+                className=" px-6 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 transition-all">
                 Get Started
-              </button>
+              </button> */}
+              <button
+  onClick={joinRoom}
+  className="hidden lg:inline-flex px-6 py-2 rounded-lg text-sm font-medium
+             bg-gradient-to-r from-purple-600 to-cyan-600
+             hover:from-purple-500 hover:to-cyan-500 transition-all"
+>
+  Get Started
+</button>
+
             </motion.div>
           </div>
         </nav>
@@ -349,4 +358,5 @@ const WatchTogetherLanding = () => {
 };
 
 export default WatchTogetherLanding;
+
 
