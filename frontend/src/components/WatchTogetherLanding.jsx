@@ -77,10 +77,10 @@ const WatchTogetherLanding = () => {
               animate={{ opacity: 1, x: 0 }}
               className="flex gap-4"
             >
-              <button onClick={scrollToFeatures}
+              {/* <button onClick={scrollToFeatures}
                 className="px-6 py-2 rounded-lg text-sm font-medium hover:bg-white/5 transition-colors">
                 Features
-              </button>
+              </button> */}
               <button onClick={joinRoom}
                 className="px-6 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 transition-all">
                 Get Started
@@ -349,3 +349,4 @@ const WatchTogetherLanding = () => {
 };
 
 export default WatchTogetherLanding;
+
