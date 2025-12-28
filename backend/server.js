@@ -24,6 +24,22 @@ const io = socketIo(server, {
 // Middleware
 app.use(cors({ origin: DEFAULT_CLIENT }));
 app.use(express.json());
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// 👇 needed for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 👇 serve frontend build
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// 👇 SPA fallback (THIS FIXES REFRESH)
+app.get('*', (req, res) => {
+  res.sendFile(
+    path.join(__dirname, '../frontend/dist/index.html')
+  );
+});
 
 // Serve static files from the React frontend build
 app.use(express.static(path.join(__dirname, '../frontend/build')));
