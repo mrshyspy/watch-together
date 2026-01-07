@@ -27,7 +27,8 @@ app.use(express.json());
 
 // Serve static files from the React frontend build
 // app.use(express.static(path.join(__dirname, '../frontend/build')));
-app.use(express.static(path.join(__dirname, "dist")));
+const frontendPath = path.join(__dirname, "../frontend/dist");
+app.use(express.static(frontendPath));
 
 console.log('--- Server Initialization ---');
 console.log('PORT:', process.env.PORT);
@@ -54,7 +55,7 @@ app.use('/api/youtube', youtubeRoutes);
 
 // Catch-all handler: serve index.html for all non-API routes
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
+  res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // Socket.IO connection handling
