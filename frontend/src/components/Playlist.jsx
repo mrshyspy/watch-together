@@ -18,8 +18,7 @@ const Playlist = ({
 // console.log("Current video:", currentVideo);
   // console.log("Video state:", videoState);
     // console.log("Video id:", currentVideo?.id);
-
-    const formatDuration = (isoDuration) => {
+       const formatDuration = (isoDuration) => {
   if (!isoDuration) return '';
 
   // already formatted (mm:ss or hh:mm:ss)
@@ -202,11 +201,10 @@ const Playlist = ({
                       by {video.addedBy}
                     </span>
                     {video.duration && (
-  <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400">
     {formatDuration(video.duration)}
-  </span>
-)}
-
+                      </span>
+                    )}
                   </div>
                   {currentVideo?.id === video.id && (
                     <div className="flex items-center mt-1">
