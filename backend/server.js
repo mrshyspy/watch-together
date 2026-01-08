@@ -213,7 +213,7 @@ io.on('connection', (socket) => {
     
     if (currentIndex < room.playlist.length - 1) {
       room.currentVideo = room.playlist[currentIndex + 1];
-      room.videoState = { position: 0, playing: true, timestamp: Date.now() };
+      room.videoState = { position: 0, playing: false, timestamp: Date.now() };
       await room.save();
       
       io.to(socket.roomId).emit('video-changed', {
