@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
+import { useNavigate } from 'react-router-dom';
 
 const SERVER_URL = import.meta.env.VITE_REACT_APP_SERVER_URL || 'http://localhost:5001';
 
 const useSocket = (roomId, currentUser) => {
+    const navigate = useNavigate();
+
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const [room, setRoom] = useState(null);
@@ -111,8 +114,11 @@ const useSocket = (roomId, currentUser) => {
       alert('This room is locked and requires approval to join.');
     });
 
-    newSocket.on('cohost-limit-reached', () => {
-      alert('This room already has the maximum number of cohosts (2).');
+    newSocket.on('cohost-limit-reached', ({ roomId, message }) => {
+      alert(message);
+
+      // Redirect back to join page for same room
+      navigate(`/room/${roomId}/join`);
     });
 
     newSocket.on('room-lock-updated', (data) => {
@@ -127,7 +133,7 @@ const useSocket = (roomId, currentUser) => {
     return () => {
       newSocket.close();
     };
-  }, [roomId, currentUser]);
+  }, [roomId, currentUser, navigate]);
 
   const emitVideoPlay = (position) => {
     if (socket && userRole === 'cohost') {

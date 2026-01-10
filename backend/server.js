@@ -89,10 +89,13 @@ io.on('connection', (socket) => {
         }
 
         // Check cohost limit
-        if (role === 'cohost' && room.cohosts.length >= 2) {
-          socket.emit('cohost-limit-reached');
-          return;
-        }
+       if (role === 'cohost' && room.cohosts.length >= 2) {
+  socket.emit('cohost-limit-reached', {
+    roomId,
+    message: 'Cohost limit reached. Please join as a guest.'
+  });
+  return;
+}
 
         // Add user to room
         if (role === 'cohost') {
